@@ -27,7 +27,7 @@ jobs:
         uses: softprops/action-gh-release@v1
         if: startsWith(github.ref, 'refs/tags/')
         with:
-          files: ./build/
+          files: ./build/libs/*.jar
           prerelease: endsWith(github.ref, '-alpha')
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
