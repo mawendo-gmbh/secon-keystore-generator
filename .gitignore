@@ -51,5 +51,6 @@ gradle-app.setting
 *.iml
 *.ipr
 
-# created key stored
+# created key store and key file
 *.p12
+*.key

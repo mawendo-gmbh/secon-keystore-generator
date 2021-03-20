@@ -38,15 +38,14 @@ public class SeconKeyStoreGenerator {
     try {
       CERTIFICATE_FACTORY = CertificateFactory.getInstance("X.509");
     } catch (CertificateException e) {
-      throw new RuntimeException("Unable to create CertificateFactory of type X.509.");
+      throw new SeconKeyStoreGeneratorException(
+          "Unable to create CertificateFactory of type X.509.", e);
     }
   }
 
   final Map<String, Certificate> certificates = new HashMap<>();
 
-  /**
-   * Run generator CLI.
-   */
+  /** Run generator CLI. */
   public static void main(String[] args) {
 
     Options options = new Options();
@@ -96,8 +95,14 @@ public class SeconKeyStoreGenerator {
             : new String(System.console().readPassword("Enter password for key store: "));
 
     SeconKeyStoreGenerator keyStoreCreator = new SeconKeyStoreGenerator();
-    keyStoreCreator.loadHealthInsuranceKeys(keyFilePath);
-    keyStoreCreator.writeKeyStore(keyStoreFilePath, keyStorePassword);
+
+    try {
+      keyStoreCreator.loadHealthInsuranceKeys(keyFilePath);
+      keyStoreCreator.writeKeyStore(keyStoreFilePath, keyStorePassword);
+    } catch (SeconKeyStoreGeneratorException e) {
+      System.out.println(e.getMessage());
+      System.exit(1);
+    }
   }
 
   /**
@@ -174,10 +179,13 @@ public class SeconKeyStoreGenerator {
    * @return array of keys
    */
   private String[] readHealthInsuranceKeys(Path keysPath) {
+    if (!Files.exists(keysPath)) {
+      throw new SeconKeyStoreGeneratorException("Key file '" + keysPath + "' not found.");
+    }
     try {
       return Files.readString(keysPath).split("(?m)^\\s*$");
     } catch (IOException e) {
-      throw new RuntimeException("Error reading key file: " + e.getMessage());
+      throw new SeconKeyStoreGeneratorException("Error reading key file: " + e.getMessage(), e);
     }
   }
 
@@ -196,10 +204,13 @@ public class SeconKeyStoreGenerator {
       }
       keystore.store(outputStream, storePassword.toCharArray());
     } catch (KeyStoreException e) {
-      throw new RuntimeException(
-          "Unable to create empty key store instance of type jks: " + e.getMessage());
+      throw new SeconKeyStoreGeneratorException(
+          "Unable to create empty key store instance of type jks: " + e.getMessage(), e);
     } catch (IOException | NoSuchAlgorithmException | CertificateException e) {
-      throw new RuntimeException("Unable to write key store: " + e.getMessage());
+      throw new SeconKeyStoreGeneratorException("Unable to write key store: " + e.getMessage(), e);
     }
+
+    System.out.println(
+        "Generated key store '" + storePath + "' with " + certificates.size() + " certificates.");
   }
 }
