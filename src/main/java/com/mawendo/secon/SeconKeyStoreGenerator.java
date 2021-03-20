@@ -27,9 +27,10 @@ import org.apache.commons.cli.HelpFormatter;
 import org.apache.commons.cli.Option;
 import org.apache.commons.cli.Options;
 import org.apache.commons.cli.ParseException;
+import org.tinylog.Logger;
+import org.tinylog.configuration.Configuration;
 
 public class SeconKeyStoreGenerator {
-
   private static final CertificateFactory CERTIFICATE_FACTORY;
   private static final String DEFAULT_KEY_PATH = "annahme-rsa4096.key";
   private static final String DEFAULT_KEY_STORE_PATH = "healthInsuranceCertificates.p12";
@@ -47,7 +48,6 @@ public class SeconKeyStoreGenerator {
 
   /** Run generator CLI. */
   public static void main(String[] args) {
-
     Options options = new Options();
     options.addOption(
         new Option(
@@ -61,23 +61,30 @@ public class SeconKeyStoreGenerator {
             "path of key store file (default: " + DEFAULT_KEY_STORE_PATH + ")"));
 
     options.addOption(new Option(null, "key-store-password", true, "password of key store file"));
+
+    options.addOption(new Option(null, "debug", false, "enable debug logging"));
     options.addOption(new Option(null, "help", false, "print this message"));
 
     CommandLineParser parser = new DefaultParser();
     HelpFormatter formatter = new HelpFormatter();
+    formatter.setWidth(120);
     CommandLine cmd = null;
 
     boolean parseError = false;
     try {
       cmd = parser.parse(options, args);
     } catch (ParseException e) {
-      System.out.println(e.getMessage());
+      Logger.error(e.getMessage());
       parseError = true;
     }
 
     if (parseError || cmd.hasOption("help")) {
       formatter.printHelp(SeconKeyStoreGenerator.class.getSimpleName(), options);
       System.exit(1);
+    }
+
+    if (cmd.hasOption("debug")) {
+      Configuration.set("writer.level", "debug");
     }
 
     Path keyFilePath =
@@ -100,7 +107,7 @@ public class SeconKeyStoreGenerator {
       keyStoreCreator.loadHealthInsuranceKeys(keyFilePath);
       keyStoreCreator.writeKeyStore(keyStoreFilePath, keyStorePassword);
     } catch (SeconKeyStoreGeneratorException e) {
-      System.out.println(e.getMessage());
+      Logger.error(e.getMessage());
       System.exit(1);
     }
   }
@@ -156,6 +163,7 @@ public class SeconKeyStoreGenerator {
       try {
         certificate = buildX509Certificate(key);
       } catch (CertificateException e) {
+        Logger.debug("Certificate parsing error: {}", e.getMessage());
         errors++;
         continue;
       }
@@ -163,12 +171,14 @@ public class SeconKeyStoreGenerator {
       if (ik.isPresent()) {
         certificates.put(ik.get(), certificate);
       } else {
+        Logger.debug(
+            "No IK in certificate subject: {}", certificate.getSubjectX500Principal().getName());
         errors++;
       }
     }
 
     if (errors > 0) {
-      System.out.println("Warning: Unable to load " + errors + " certificate(s). ");
+      Logger.warn("Warning: Unable to load " + errors + " certificate(s). ");
     }
   }
 
@@ -200,6 +210,7 @@ public class SeconKeyStoreGenerator {
       KeyStore keystore = KeyStore.getInstance("PKCS12");
       keystore.load(null, storePassword.toCharArray());
       for (var entry : certificates.entrySet()) {
+        Logger.debug("Add certificate for {} to key store", entry.getKey());
         keystore.setCertificateEntry(entry.getKey(), entry.getValue());
       }
       keystore.store(outputStream, storePassword.toCharArray());
@@ -210,7 +221,7 @@ public class SeconKeyStoreGenerator {
       throw new SeconKeyStoreGeneratorException("Unable to write key store: " + e.getMessage(), e);
     }
 
-    System.out.println(
+    Logger.info(
         "Generated key store '" + storePath + "' with " + certificates.size() + " certificates.");
   }
 }
