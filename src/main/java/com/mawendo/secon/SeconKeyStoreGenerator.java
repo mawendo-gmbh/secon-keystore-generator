@@ -21,7 +21,7 @@ import org.tinylog.Logger;
 import org.tinylog.configuration.Configuration;
 
 public class SeconKeyStoreGenerator {
-  private static final CertificateFactory CERTIFICATE_FACTORY;
+  static final CertificateFactory CERTIFICATE_FACTORY;
   private static final String DEFAULT_KEY_PATH = "annahme-rsa4096.key";
   private static final String DEFAULT_KEY_STORE_PATH = "certificates.p12";
   private static final String DEFAULT_PRIVATE_KEY_ALIAS = "private";

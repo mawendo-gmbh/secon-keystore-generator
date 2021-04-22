@@ -25,7 +25,7 @@ import org.tinylog.Logger;
  */
 class HealthInsuranceKeyStoreGenerator {
   private final CertificateFactory certificateFactory;
-  private final Map<String, Certificate> certificates = new HashMap<>();
+  final Map<String, Certificate> certificates = new HashMap<>();
 
   HealthInsuranceKeyStoreGenerator(CertificateFactory certificateFactory) {
     this.certificateFactory = certificateFactory;
