@@ -1,25 +1,15 @@
 package com.mawendo.secon;
 
-import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.OutputStream;
-import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.security.KeyStore;
 import java.security.KeyStoreException;
 import java.security.NoSuchAlgorithmException;
-import java.security.cert.Certificate;
 import java.security.cert.CertificateException;
 import java.security.cert.CertificateFactory;
-import java.security.cert.X509Certificate;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.Optional;
-import javax.naming.InvalidNameException;
-import javax.naming.ldap.LdapName;
-import javax.naming.ldap.Rdn;
 import org.apache.commons.cli.CommandLine;
 import org.apache.commons.cli.CommandLineParser;
 import org.apache.commons.cli.DefaultParser;
@@ -31,9 +21,10 @@ import org.tinylog.Logger;
 import org.tinylog.configuration.Configuration;
 
 public class SeconKeyStoreGenerator {
-  private static final CertificateFactory CERTIFICATE_FACTORY;
+  static final CertificateFactory CERTIFICATE_FACTORY;
   private static final String DEFAULT_KEY_PATH = "annahme-rsa4096.key";
-  private static final String DEFAULT_KEY_STORE_PATH = "healthInsuranceCertificates.p12";
+  private static final String DEFAULT_KEY_STORE_PATH = "certificates.p12";
+  private static final String DEFAULT_PRIVATE_KEY_ALIAS = "private";
 
   static {
     try {
@@ -44,22 +35,42 @@ public class SeconKeyStoreGenerator {
     }
   }
 
-  final Map<String, Certificate> certificates = new HashMap<>();
-
-  /** Run generator CLI. */
+  /**
+   * Run generator CLI.
+   */
   public static void main(String[] args) {
     Options options = new Options();
     options.addOption(
         new Option(
-            "k", "key-file", true, "path of the key file (default: " + DEFAULT_KEY_PATH + ")"));
+            "k", "insurance-keys", true,
+            "path of the insurance keys file (default: " + DEFAULT_KEY_PATH + ")"));
 
     options.addOption(
         new Option(
             "s",
             "key-store-file",
             true,
-            "path of key store file (default: " + DEFAULT_KEY_STORE_PATH + ")"));
+            "path of output .p12 key store file (default: " + DEFAULT_KEY_STORE_PATH + ")"));
 
+    options.addOption(
+        new Option(
+            "p",
+            "private-key",
+            true,
+            "(optional) path of your private key (PKCS1 .pem file beginning with"
+                + " '--BEGIN RSA PRIVATE KEY--')"));
+
+    options.addOption(
+        new Option(
+            "c",
+            "chain",
+            true,
+            "(optional) path of your certificate chain (.p7c file received from ITSG)"));
+
+    options.addOption(new Option("a", "alias", true,
+        "the alias of your private key in the keystore (default: "
+            + DEFAULT_PRIVATE_KEY_ALIAS
+            + ")"));
     options.addOption(new Option(null, "key-store-password", true, "password of key store file"));
 
     options.addOption(new Option(null, "debug", false, "enable debug logging"));
@@ -78,9 +89,22 @@ public class SeconKeyStoreGenerator {
       parseError = true;
     }
 
-    if (parseError || cmd.getOptions().length == 0 || cmd.hasOption("help")) {
+    if (parseError || cmd.hasOption("help")) {
       formatter.printHelp(SeconKeyStoreGenerator.class.getSimpleName(), options);
       System.exit(1);
+    }
+
+    boolean shouldEmbedPrivateKey = false;
+    if (cmd.hasOption("private-key") || cmd.hasOption("chain")) {
+      if (!cmd.hasOption("chain") || !cmd.hasOption("private-key")) {
+        Logger.error(
+            "To embed your private key in the keystore you must provide both a PEM private key"
+                + " (--private-key) and a P7C certificate chain (--chain)"
+        );
+        formatter.printHelp(SeconKeyStoreGenerator.class.getSimpleName(), options);
+        System.exit(1);
+      }
+      shouldEmbedPrivateKey = true;
     }
 
     if (cmd.hasOption("debug")) {
@@ -88,7 +112,8 @@ public class SeconKeyStoreGenerator {
     }
 
     Path keyFilePath =
-        Paths.get(cmd.hasOption("key-file") ? cmd.getOptionValue("key-file") : DEFAULT_KEY_PATH);
+        Paths.get(cmd.hasOption("insurance-keys") ? cmd.getOptionValue("insurance-keys") :
+            DEFAULT_KEY_PATH);
 
     Path keyStoreFilePath =
         Paths.get(
@@ -101,11 +126,27 @@ public class SeconKeyStoreGenerator {
             ? cmd.getOptionValue("key-store-password")
             : new String(System.console().readPassword("Enter password for key store: "));
 
-    SeconKeyStoreGenerator keyStoreCreator = new SeconKeyStoreGenerator();
+    String privateKeyAlias =
+        cmd.hasOption("alias")
+            ? cmd.getOptionValue("alias")
+            : DEFAULT_PRIVATE_KEY_ALIAS;
 
     try {
-      keyStoreCreator.loadHealthInsuranceKeys(keyFilePath);
-      keyStoreCreator.writeKeyStore(keyStoreFilePath, keyStorePassword);
+      HealthInsuranceKeyStoreGenerator healthInsuranceKeyStoreGenerator =
+          new HealthInsuranceKeyStoreGenerator(CERTIFICATE_FACTORY);
+      healthInsuranceKeyStoreGenerator.loadHealthInsuranceKeys(keyFilePath);
+      KeyStore keystore = healthInsuranceKeyStoreGenerator.generateKeyStore(keyStorePassword);
+
+      if (shouldEmbedPrivateKey) {
+        Path privateKeyPath = Paths.get(cmd.getOptionValue("private-key"));
+        Path chain = Paths.get(cmd.getOptionValue("chain"));
+        PrivateKeyHandler generator = new PrivateKeyHandler(CERTIFICATE_FACTORY);
+        generator.embedPrivateKeyInKeyStore(keystore, privateKeyPath, chain, privateKeyAlias,
+            keyStorePassword);
+        Logger.debug(
+            "Successfully embedded private key in keystore with alias '" + privateKeyAlias + "'");
+      }
+      writeKeyStore(keystore, keyStoreFilePath, keyStorePassword);
     } catch (SeconKeyStoreGeneratorException e) {
       Logger.error(e.getMessage());
       System.exit(1);
@@ -113,106 +154,14 @@ public class SeconKeyStoreGenerator {
   }
 
   /**
-   * Parse key form health insurance.
+   * Write new keyStore to disk.
    *
-   * @param key string representation of the certificate without BEGIN CERTIFICATE and BEGIN
-   *     CERTIFICATE statements
-   * @return the certificate
-   * @throws CertificateException on parsing errors
-   */
-  private static X509Certificate buildX509Certificate(String key) throws CertificateException {
-    String certificateString =
-        "-----BEGIN CERTIFICATE-----\n" + key + "\n-----END CERTIFICATE-----\n";
-    return (X509Certificate)
-        CERTIFICATE_FACTORY.generateCertificate(
-            new ByteArrayInputStream(certificateString.getBytes(StandardCharsets.UTF_8)));
-  }
-
-  /**
-   * Extract IK from certificate.
-   *
-   * @param certificate a ITSG TrustCenter certificate
-   * @return IK if present
-   */
-  private static Optional<String> getIk(X509Certificate certificate) {
-    LdapName dn;
-    try {
-      dn = new LdapName(certificate.getSubjectX500Principal().getName());
-    } catch (InvalidNameException e) {
-      return Optional.empty();
-    }
-
-    return dn.getRdns().stream()
-        .filter(r -> r.getType().equalsIgnoreCase("OU") && r.getValue().toString().startsWith("IK"))
-        .map(Rdn::getValue)
-        .map(Object::toString)
-        .findFirst();
-  }
-
-  /**
-   * Read and parse health insurance certificates.
-   *
-   * @param keysPath the path to the keys file
-   */
-  void loadHealthInsuranceKeys(Path keysPath) {
-    String[] healthInsuranceKeys = readHealthInsuranceKeys(keysPath);
-    int errors = 0;
-    for (String key : healthInsuranceKeys) {
-
-      X509Certificate certificate;
-      try {
-        certificate = buildX509Certificate(key);
-      } catch (CertificateException e) {
-        Logger.debug("Certificate parsing error: {}", e.getMessage());
-        errors++;
-        continue;
-      }
-      Optional<String> ik = getIk(certificate);
-      if (ik.isPresent()) {
-        certificates.put(ik.get(), certificate);
-      } else {
-        Logger.debug(
-            "No IK in certificate subject: {}", certificate.getSubjectX500Principal().getName());
-        errors++;
-      }
-    }
-
-    if (errors > 0) {
-      Logger.warn("Warning: Unable to load " + errors + " certificate(s). ");
-    }
-  }
-
-  /**
-   * Read health insurance keys (e.g. annahme-rsa4096.key).
-   *
-   * @param keysPath the path of the key file
-   * @return array of keys
-   */
-  private String[] readHealthInsuranceKeys(Path keysPath) {
-    if (!Files.exists(keysPath)) {
-      throw new SeconKeyStoreGeneratorException("Key file '" + keysPath + "' not found.");
-    }
-    try {
-      return Files.readString(keysPath).split("(?m)^\\s*$");
-    } catch (IOException e) {
-      throw new SeconKeyStoreGeneratorException("Error reading key file: " + e.getMessage(), e);
-    }
-  }
-
-  /**
-   * Write new keyStore containing all health insurance certificates.
-   *
-   * @param storePath the path of the key store file
+   * @param keystore      the keystore to write
+   * @param storePath     the path of the key store file
    * @param storePassword the password used to generate the key store
    */
-  void writeKeyStore(Path storePath, String storePassword) {
+  static void writeKeyStore(KeyStore keystore, Path storePath, String storePassword) {
     try (OutputStream outputStream = Files.newOutputStream(storePath)) {
-      KeyStore keystore = KeyStore.getInstance("PKCS12");
-      keystore.load(null, storePassword.toCharArray());
-      for (var entry : certificates.entrySet()) {
-        Logger.debug("Add certificate for {} to key store", entry.getKey());
-        keystore.setCertificateEntry(entry.getKey(), entry.getValue());
-      }
       keystore.store(outputStream, storePassword.toCharArray());
     } catch (KeyStoreException e) {
       throw new SeconKeyStoreGeneratorException(
@@ -222,6 +171,6 @@ public class SeconKeyStoreGenerator {
     }
 
     Logger.info(
-        "Generated key store '" + storePath + "' with " + certificates.size() + " certificates.");
+        "Generated key store '" + storePath + "'");
   }
 }

@@ -14,7 +14,8 @@ class SeconKeyStoreGeneratorTest {
 
   @Test
   void loadHealthInsuranceKeys() {
-    SeconKeyStoreGenerator generator = new SeconKeyStoreGenerator();
+    HealthInsuranceKeyStoreGenerator generator =
+        new HealthInsuranceKeyStoreGenerator(SeconKeyStoreGenerator.CERTIFICATE_FACTORY);
 
     generator.loadHealthInsuranceKeys(Paths.get("src", "test", "resources", "valid-rsa4096.key"));
 
@@ -23,14 +24,18 @@ class SeconKeyStoreGeneratorTest {
 
   @Test
   void writeKeyStore(@TempDir Path tempDir) throws Exception {
-    SeconKeyStoreGenerator generator = new SeconKeyStoreGenerator();
+
+    String password = "test";
+    HealthInsuranceKeyStoreGenerator generator =
+        new HealthInsuranceKeyStoreGenerator(SeconKeyStoreGenerator.CERTIFICATE_FACTORY);
     generator.loadHealthInsuranceKeys(Paths.get("src", "test", "resources", "valid-rsa4096.key"));
+    KeyStore keystore = generator.generateKeyStore(password);
     Path keyStorePath = Paths.get(tempDir.toString(), "test-store.p12");
 
-    generator.writeKeyStore(keyStorePath, "test-pw");
+    SeconKeyStoreGenerator.writeKeyStore(keystore, keyStorePath, password);
 
     assertTrue(Files.exists(keyStorePath));
-    KeyStore keyStore = KeyStore.getInstance(keyStorePath.toFile(), "test-pw".toCharArray());
+    KeyStore keyStore = KeyStore.getInstance(keyStorePath.toFile(), password.toCharArray());
     assertEquals(3, generator.certificates.size());
     for (String ik : generator.certificates.keySet()) {
       assertTrue(keyStore.containsAlias(ik));
