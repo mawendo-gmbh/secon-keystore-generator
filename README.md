@@ -6,7 +6,7 @@ This tool generates a PKCS12 key store containing public certificates published 
 
 ## Usage
 Download the latest generator release from [here](https://github.com/mawendo-gmbh/secon-keystore-generator/releases) and 
-download the latest **annahme-rsa4096.key** file from [ITSG Trust Center](https://www.itsg.de/produkte/trust-center/oeffentliche-zertifikate-und-verzeichnisse/) website.
+download the latest **annahme-rsa4096.key** file from [ITSG Trust Center](https://www.itsg.de/produkte/trust-center/oeffentliche-zertifikate-und-verzeichnisse/) website ([direct link to key](https://trustcenter-data.itsg.de/dale/annahme-rsa4096.key)).
 
 ### Public certificates keystore
 
@@ -33,6 +33,13 @@ java -jar secon-keystore-generator-<version>.jar \\
     -p <private-key-filename> \\
     -c <private-certificate-chain-filename>
 ```
+
+for example
+```
+java -jar secon-keystore-generator.jar -k annahme-rsa4096.key -p my.prv.key.pem -c my.chain.p7c
+```
+will prompt you for a password, and generate a file called `certificates.p12` which contains all public certificates
+as well as your private certificate with the alias `private`.
 
 ## License
 MIT
