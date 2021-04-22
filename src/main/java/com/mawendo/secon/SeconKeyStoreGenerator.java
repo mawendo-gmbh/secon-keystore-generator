@@ -78,7 +78,7 @@ public class SeconKeyStoreGenerator {
       parseError = true;
     }
 
-    if (parseError || cmd.hasOption("help")) {
+    if (parseError || cmd.getOptions().length == 0 || cmd.hasOption("help")) {
       formatter.printHelp(SeconKeyStoreGenerator.class.getSimpleName(), options);
       System.exit(1);
     }
