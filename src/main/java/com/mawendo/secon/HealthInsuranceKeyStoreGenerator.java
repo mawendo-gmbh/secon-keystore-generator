@@ -65,6 +65,29 @@ class HealthInsuranceKeyStoreGenerator {
     }
 
     /**
+     * Create new keyStore containing all health insurance certificates.
+     * Certificates must be loaded first (see {@link #loadHealthInsuranceKeys(Path)})
+     *
+     * @param storePassword the password used to generate the key store
+     */
+    KeyStore generateKeyStore(String storePassword) throws SeconKeyStoreGeneratorException {
+        try {
+            KeyStore keystore = KeyStore.getInstance("PKCS12");
+            keystore.load(null, storePassword.toCharArray());
+            for (var entry : certificates.entrySet()) {
+                Logger.debug("Add certificate for {} to key store", entry.getKey());
+                keystore.setCertificateEntry(entry.getKey(), entry.getValue());
+            }
+            return keystore;
+        } catch (KeyStoreException e) {
+            throw new SeconKeyStoreGeneratorException(
+                    "Unable to create empty key store instance of type jks: " + e.getMessage(), e);
+        } catch (IOException | NoSuchAlgorithmException | CertificateException e) {
+            throw new SeconKeyStoreGeneratorException("Unable to write key store: " + e.getMessage(), e);
+        }
+    }
+
+    /**
      * Extract IK from certificate.
      *
      * @param certificate a ITSG TrustCenter certificate
@@ -118,25 +141,4 @@ class HealthInsuranceKeyStoreGenerator {
         }
     }
 
-    /**
-     * Create new keyStore containing all health insurance certificates.
-     *
-     * @param storePassword the password used to generate the key store
-     */
-    KeyStore generateKeyStore(String storePassword) throws SeconKeyStoreGeneratorException {
-        try {
-            KeyStore keystore = KeyStore.getInstance("PKCS12");
-            keystore.load(null, storePassword.toCharArray());
-            for (var entry : certificates.entrySet()) {
-                Logger.debug("Add certificate for {} to key store", entry.getKey());
-                keystore.setCertificateEntry(entry.getKey(), entry.getValue());
-            }
-            return keystore;
-        } catch (KeyStoreException e) {
-            throw new SeconKeyStoreGeneratorException(
-                    "Unable to create empty key store instance of type jks: " + e.getMessage(), e);
-        } catch (IOException | NoSuchAlgorithmException | CertificateException e) {
-            throw new SeconKeyStoreGeneratorException("Unable to write key store: " + e.getMessage(), e);
-        }
-    }
 }

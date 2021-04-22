@@ -12,6 +12,12 @@ import java.security.spec.InvalidKeySpecException;
 import java.security.spec.PKCS8EncodedKeySpec;
 import java.util.Base64;
 
+/**
+ * Handle embedding private keys and keychains in a keystore
+ * Will handle files received from ITSG and the private key you generated on application:
+ * *.pem (containing only the private key)
+ * *.p7c (the certificate chain you received from ITSG)
+ */
 class PrivateKeyHandler {
     private static final String PKCS_1_PEM_HEADER = "-----BEGIN RSA PRIVATE KEY-----";
     private static final String PKCS_1_PEM_FOOTER = "-----END RSA PRIVATE KEY-----";
@@ -21,11 +27,21 @@ class PrivateKeyHandler {
         this.certificateFactory = certificateFactory;
     }
 
+    /**
+     * Embed a private key and certificate chain in the keystore.
+     * @param keystore the target keystore to write the private key to
+     * @param keySourcePath path to the private key (PKCS1 .pem file with "BEGIN RSA PRIVATE KEY" at the top)
+     * @param chainSourcePath path to the chain you received from ITSG (.p7c file)
+     * @param alias the alias you wish to give to your private certificate in the keystore
+     * @param password the password to protect your private certificate with
+     * @return the keystore containing the private key
+     */
     KeyStore embedPrivateKeyInKeyStore(
             KeyStore keystore,
             Path keySourcePath,
             Path chainSourcePath,
-            String alias
+            String alias,
+            String password
     ) {
         if (!Files.exists(keySourcePath)) {
             throw new SeconKeyStoreGeneratorException("Key file '" + keySourcePath + "' not found.");
@@ -39,8 +55,7 @@ class PrivateKeyHandler {
                     .map(obj -> (Certificate) obj)
                     .toArray(Certificate[]::new);
             PrivateKey privateKey = loadPrivateKey(keySourcePath);
-//            keystore.setKeyEntry(alias, privateKey, "test".toCharArray(), chain);
-            keystore.setKeyEntry(alias, privateKey, null, chain);
+            keystore.setKeyEntry(alias, privateKey, password.toCharArray(), chain);
             return keystore;
         } catch (IOException e) {
             throw new SeconKeyStoreGeneratorException("Failed to open file at: " + keySourcePath);

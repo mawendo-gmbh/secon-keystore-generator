@@ -6,12 +6,32 @@ This tool generates a PKCS12 key store containing public certificates published 
 
 ## Usage
 Download the latest generator release from [here](https://github.com/mawendo-gmbh/secon-keystore-generator/releases) and 
-download the latest **annahme-rsa4096.key** file from [ITSG Trust Center](https://www.itsg.de/produkte/trust-center/oeffentliche-zertifikate-und-verzeichnisse/) website. You can also use the key file provided in your certificate request response.
+download the latest **annahme-rsa4096.key** file from [ITSG Trust Center](https://www.itsg.de/produkte/trust-center/oeffentliche-zertifikate-und-verzeichnisse/) website.
 
-Use the following command to generate the key store. It will prompt you for a password which will be used to secure the key store.
+### Public certificates keystore
+
+Use the following command to generate a key store containing all the public certificatse. It will prompt you for a password which will be used to secure the key store.
 
 ```
-java -jar secon-keystore-generator-<version>.jar -k <key-input-filename> -s <key-store-output-filename>
+java -jar secon-keystore-generator-<version>.jar -k <insurance-keys-input-filename> -s <key-store-output-filename>
+```
+
+### Public certificates and your private certificate keystore
+
+You can also generate a key store containing all public certificates and also embed your private certificate. 
+
+For example, this could be used as the only certificate file you need to use the [DiGA API Client](https://github.com/alex-therapeutics/diga-api-client).
+
+To do this, you also need these files:
+- Your private key. This must be a PKCS1 `.pem` file which only contains the private key. It should start with `-----BEGIN RSA PRIVATE KEY-----` When you created your keys to send to ITSG, you saved this somewhere.
+- The certificate chain you received from ITSG. When ITSG approves your certificate application they send you some files. There should be a `.p7c` file there which contains your private certificate chain.
+
+```
+java -jar secon-keystore-generator-<version>.jar \\
+    -k <insurance-keys-input-filename> \\
+    -s <key-store-output-filename> \\
+    -p <private-key-filename> \\
+    -c <private-certificate-chain-filename>
 ```
 
 ## License

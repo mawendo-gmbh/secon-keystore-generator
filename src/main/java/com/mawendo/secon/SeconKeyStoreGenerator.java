@@ -117,20 +117,19 @@ public class SeconKeyStoreGenerator {
             ? cmd.getOptionValue("alias")
                     : DEFAULT_PRIVATE_KEY_ALIAS;
 
-    try {
+      try {
+          HealthInsuranceKeyStoreGenerator healthInsuranceKeyStoreGenerator = new HealthInsuranceKeyStoreGenerator(CERTIFICATE_FACTORY);
+          healthInsuranceKeyStoreGenerator.loadHealthInsuranceKeys(keyFilePath);
+          KeyStore keystore = healthInsuranceKeyStoreGenerator.generateKeyStore(keyStorePassword);
 
-    HealthInsuranceKeyStoreGenerator healthInsuranceKeyStoreGenerator = new HealthInsuranceKeyStoreGenerator(CERTIFICATE_FACTORY);
-    healthInsuranceKeyStoreGenerator.loadHealthInsuranceKeys(keyFilePath);
-    KeyStore keystore = healthInsuranceKeyStoreGenerator.generateKeyStore(keyStorePassword);
-
-    if (shouldEmbedPrivateKey) {
-        Path privateKeyPath = Paths.get(cmd.getOptionValue("private-key"));
-        Path chain = Paths.get(cmd.getOptionValue("chain"));
-        PrivateKeyHandler generator = new PrivateKeyHandler(CERTIFICATE_FACTORY);
-        generator.embedPrivateKeyInKeyStore(keystore, privateKeyPath, chain, privateKeyAlias);
-        Logger.debug("Sucessfully embedded private key in keystore with alias '" + privateKeyAlias + "'");
-    }
-    writeKeyStore(keystore, keyStoreFilePath, keyStorePassword);
+          if (shouldEmbedPrivateKey) {
+              Path privateKeyPath = Paths.get(cmd.getOptionValue("private-key"));
+              Path chain = Paths.get(cmd.getOptionValue("chain"));
+              PrivateKeyHandler generator = new PrivateKeyHandler(CERTIFICATE_FACTORY);
+              generator.embedPrivateKeyInKeyStore(keystore, privateKeyPath, chain, privateKeyAlias, keyStorePassword);
+              Logger.debug("Successfully embedded private key in keystore with alias '" + privateKeyAlias + "'");
+          }
+          writeKeyStore(keystore, keyStoreFilePath, keyStorePassword);
       } catch (SeconKeyStoreGeneratorException e) {
           Logger.error(e.getMessage());
           System.exit(1);
