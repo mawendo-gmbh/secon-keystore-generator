@@ -10,26 +10,16 @@ import java.security.KeyStore;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
-class SeconKeyStoreGeneratorTest {
+class HealthInsuranceKeyHandlerTest {
 
   @Test
-  void loadHealthInsuranceKeys() {
-    HealthInsuranceKeyStoreGenerator generator =
-        new HealthInsuranceKeyStoreGenerator(SeconKeyStoreGenerator.CERTIFICATE_FACTORY);
-
-    generator.loadHealthInsuranceKeys(Paths.get("src", "test", "resources", "valid-rsa4096.key"));
-
-    assertEquals(3, generator.certificates.size());
-  }
-
-  @Test
-  void writeKeyStore(@TempDir Path tempDir) throws Exception {
+  void embedCertificatesInKeyStore(@TempDir Path tempDir) throws Exception {
 
     String password = "test";
-    HealthInsuranceKeyStoreGenerator generator =
-        new HealthInsuranceKeyStoreGenerator(SeconKeyStoreGenerator.CERTIFICATE_FACTORY);
-    generator.loadHealthInsuranceKeys(Paths.get("src", "test", "resources", "valid-rsa4096.key"));
-    KeyStore keystore = generator.generateKeyStore(password);
+    HealthInsuranceKeyHandler generator =
+        new HealthInsuranceKeyHandler(SeconKeyStoreGenerator.CERTIFICATE_FACTORY);
+    KeyStore keystore = SeconKeyStoreGenerator.createEmptyKeyStore(password);
+    generator.embedCertificatesInKeyStore(keystore, Paths.get("src", "test", "resources", "valid-rsa4096.key"));
     Path keyStorePath = Paths.get(tempDir.toString(), "test-store.p12");
 
     SeconKeyStoreGenerator.writeKeyStore(keystore, keyStorePath, password);

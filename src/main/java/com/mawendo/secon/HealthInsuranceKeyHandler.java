@@ -7,7 +7,6 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.security.KeyStore;
 import java.security.KeyStoreException;
-import java.security.NoSuchAlgorithmException;
 import java.security.cert.Certificate;
 import java.security.cert.CertificateException;
 import java.security.cert.CertificateFactory;
@@ -23,12 +22,32 @@ import org.tinylog.Logger;
 /**
  * Handle keystore generation for health insurance certificates.
  */
-class HealthInsuranceKeyStoreGenerator {
+class HealthInsuranceKeyHandler {
   private final CertificateFactory certificateFactory;
   final Map<String, Certificate> certificates = new HashMap<>();
 
-  HealthInsuranceKeyStoreGenerator(CertificateFactory certificateFactory) {
+  HealthInsuranceKeyHandler(CertificateFactory certificateFactory) {
     this.certificateFactory = certificateFactory;
+  }
+
+  /**
+   * Embed all health insurance public certificates in the target keystore.
+   *
+   * @param keystore - the keystore to embed certificates in
+   * @param keysPath - path to the file containing health insurance public keys
+   */
+  KeyStore embedCertificatesInKeyStore(KeyStore keystore, Path keysPath) throws SeconKeyStoreGeneratorException {
+    loadHealthInsuranceKeys(keysPath);
+    try {
+      for (var entry : certificates.entrySet()) {
+        Logger.debug("Add certificate for {} to key store", entry.getKey());
+        keystore.setCertificateEntry(entry.getKey(), entry.getValue());
+      }
+      return keystore;
+    } catch (KeyStoreException e) {
+      throw new SeconKeyStoreGeneratorException(
+          "Unable to create empty key store instance of type jks: " + e.getMessage(), e);
+    }
   }
 
   /**
@@ -36,7 +55,7 @@ class HealthInsuranceKeyStoreGenerator {
    *
    * @param keysPath the path to the keys file
    */
-  void loadHealthInsuranceKeys(Path keysPath) {
+  private void loadHealthInsuranceKeys(Path keysPath) {
     String[] healthInsuranceKeys = readHealthInsuranceKeys(keysPath);
     int errors = 0;
     for (String key : healthInsuranceKeys) {
@@ -58,34 +77,11 @@ class HealthInsuranceKeyStoreGenerator {
         errors++;
       }
     }
-
     if (errors > 0) {
       Logger.warn("Warning: Unable to load " + errors + " certificate(s). ");
     }
   }
 
-  /**
-   * Create new keyStore containing all health insurance certificates.
-   * Certificates must be loaded first (see {@link #loadHealthInsuranceKeys(Path)})
-   *
-   * @param storePassword the password used to generate the key store
-   */
-  KeyStore generateKeyStore(String storePassword) throws SeconKeyStoreGeneratorException {
-    try {
-      KeyStore keystore = KeyStore.getInstance("PKCS12");
-      keystore.load(null, storePassword.toCharArray());
-      for (var entry : certificates.entrySet()) {
-        Logger.debug("Add certificate for {} to key store", entry.getKey());
-        keystore.setCertificateEntry(entry.getKey(), entry.getValue());
-      }
-      return keystore;
-    } catch (KeyStoreException e) {
-      throw new SeconKeyStoreGeneratorException(
-          "Unable to create empty key store instance of type jks: " + e.getMessage(), e);
-    } catch (IOException | NoSuchAlgorithmException | CertificateException e) {
-      throw new SeconKeyStoreGeneratorException("Unable to write key store: " + e.getMessage(), e);
-    }
-  }
 
   /**
    * Extract IK from certificate.

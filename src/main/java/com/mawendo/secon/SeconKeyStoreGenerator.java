@@ -132,10 +132,12 @@ public class SeconKeyStoreGenerator {
             : DEFAULT_PRIVATE_KEY_ALIAS;
 
     try {
-      HealthInsuranceKeyStoreGenerator healthInsuranceKeyStoreGenerator =
-          new HealthInsuranceKeyStoreGenerator(CERTIFICATE_FACTORY);
-      healthInsuranceKeyStoreGenerator.loadHealthInsuranceKeys(keyFilePath);
-      KeyStore keystore = healthInsuranceKeyStoreGenerator.generateKeyStore(keyStorePassword);
+      KeyStore keystore = createEmptyKeyStore(keyStorePassword);
+      HealthInsuranceKeyHandler healthInsuranceKeyHandler =
+          new HealthInsuranceKeyHandler(CERTIFICATE_FACTORY);
+      healthInsuranceKeyHandler.embedCertificatesInKeyStore(keystore, keyFilePath);
+      Logger.debug(
+          "Successfully embedded health insurance certificates in keystore");
 
       if (shouldEmbedPrivateKey) {
         Path privateKeyPath = Paths.get(cmd.getOptionValue("private-key"));
@@ -150,6 +152,22 @@ public class SeconKeyStoreGenerator {
     } catch (SeconKeyStoreGeneratorException e) {
       Logger.error(e.getMessage());
       System.exit(1);
+    }
+  }
+
+  /**
+   * Create an empty key store.
+   * @param password
+   * @return
+   */
+  static KeyStore createEmptyKeyStore(String password) {
+    try {
+      KeyStore keystore = KeyStore.getInstance("PKCS12");
+      keystore.load(null, password.toCharArray());
+      return keystore;
+    } catch (KeyStoreException | IOException | NoSuchAlgorithmException | CertificateException e) {
+      throw new SeconKeyStoreGeneratorException("Unable to create empty key store instance: "
+          + e.getMessage(), e);
     }
   }
 
