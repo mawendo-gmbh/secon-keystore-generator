@@ -19,7 +19,8 @@ class HealthInsuranceKeyHandlerTest {
     HealthInsuranceKeyHandler generator =
         new HealthInsuranceKeyHandler(SeconKeyStoreGenerator.CERTIFICATE_FACTORY);
     KeyStore keystore = SeconKeyStoreGenerator.createEmptyKeyStore(password);
-    generator.embedCertificatesInKeyStore(keystore, Paths.get("src", "test", "resources", "valid-rsa4096.key"));
+    generator.embedCertificatesInKeyStore(keystore,
+        Paths.get("src", "test", "resources", "valid-rsa4096.key"));
     Path keyStorePath = Paths.get(tempDir.toString(), "test-store.p12");
 
     SeconKeyStoreGenerator.writeKeyStore(keystore, keyStorePath, password);

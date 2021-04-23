@@ -157,8 +157,9 @@ public class SeconKeyStoreGenerator {
 
   /**
    * Create an empty key store.
-   * @param password
-   * @return
+   *
+   * @param password the password to load the keystore with
+   * @return an empty keystore
    */
   static KeyStore createEmptyKeyStore(String password) {
     try {

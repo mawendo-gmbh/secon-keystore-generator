@@ -23,8 +23,8 @@ import org.tinylog.Logger;
  * Handle keystore generation for health insurance certificates.
  */
 class HealthInsuranceKeyHandler {
-  private final CertificateFactory certificateFactory;
   final Map<String, Certificate> certificates = new HashMap<>();
+  private final CertificateFactory certificateFactory;
 
   HealthInsuranceKeyHandler(CertificateFactory certificateFactory) {
     this.certificateFactory = certificateFactory;
@@ -36,7 +36,8 @@ class HealthInsuranceKeyHandler {
    * @param keystore - the keystore to embed certificates in
    * @param keysPath - path to the file containing health insurance public keys
    */
-  KeyStore embedCertificatesInKeyStore(KeyStore keystore, Path keysPath) throws SeconKeyStoreGeneratorException {
+  KeyStore embedCertificatesInKeyStore(KeyStore keystore, Path keysPath)
+      throws SeconKeyStoreGeneratorException {
     loadHealthInsuranceKeys(keysPath);
     try {
       for (var entry : certificates.entrySet()) {
