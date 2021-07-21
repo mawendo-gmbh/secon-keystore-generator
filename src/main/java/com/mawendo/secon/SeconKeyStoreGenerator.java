@@ -57,8 +57,8 @@ public class SeconKeyStoreGenerator {
             "p",
             "private-key",
             true,
-            "(optional) path of your private key (PKCS1 .pem file beginning with"
-                + " '--BEGIN RSA PRIVATE KEY--')"));
+            "(optional) path of your private key (PKCS1 '.pem' file beginning with"
+                + " '--BEGIN RSA PRIVATE KEY--') OR PKCS8 '.der' file"));
 
     options.addOption(
         new Option(

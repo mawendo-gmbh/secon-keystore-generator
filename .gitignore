@@ -16,6 +16,11 @@ gradle-app.setting
 # Reference: https://intellij-support.jetbrains.com/hc/en-us/articles/206544839
 
 # User-specific stuff
+bin
+.project
+.settings
+.classpath
+.vscode
 .idea/**/workspace.xml
 .idea/**/tasks.xml
 .idea/**/usage.statistics.xml
@@ -54,3 +59,6 @@ gradle-app.setting
 # created key store and key file
 *.p12
 *.key
+*.pem
+*.der
+*.p7c
