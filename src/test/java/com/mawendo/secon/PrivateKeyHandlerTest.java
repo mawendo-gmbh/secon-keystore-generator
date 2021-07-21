@@ -15,20 +15,23 @@ class PrivateKeyHandlerTest {
     PrivateKeyHandler handler = new PrivateKeyHandler(SeconKeyStoreGenerator.CERTIFICATE_FACTORY);
     String password = "test";
     KeyStore keystore = SeconKeyStoreGenerator.createEmptyKeyStore(password);
-    Path keySourcePath = Paths.get("src", "test", "resources", "private-key.pem");
     Path chainSourcePath = Paths.get("src", "test", "resources", "chain.p7c");
     String alias = "private";
-    handler.embedPrivateKeyInKeyStore(
-        keystore,
-        keySourcePath,
-        chainSourcePath,
-        alias,
-        password
-    );
-    X509Certificate certificate = (X509Certificate) keystore.getCertificateChain(alias)[0];
-    assertTrue(keystore.containsAlias(alias));
-    assertTrue(
-        certificate.getSubjectX500Principal().getName().contains("O=Secon Keystore Generator"));
 
+    String[] keyNames = new String[] { "private-key.pem", "private-key.der" };
+    for (String keyName : keyNames) {
+      Path keySourcePath = Paths.get("src", "test", "resources", keyName);
+      handler.embedPrivateKeyInKeyStore(
+          keystore,
+          keySourcePath,
+          chainSourcePath,
+          alias,
+          password
+      );
+      X509Certificate certificate = (X509Certificate) keystore.getCertificateChain(alias)[0];
+      assertTrue(keystore.containsAlias(alias));
+      assertTrue(
+          certificate.getSubjectX500Principal().getName().contains("O=Secon Keystore Generator"));
+    }
   }
 }
