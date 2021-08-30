@@ -73,9 +73,37 @@ class PrivateKeyHandler {
     }
   }
 
+  private PrivateKey loadPrivateKey(Path keyPath) throws 
+      IOException, 
+      NoSuchAlgorithmException,
+      InvalidKeySpecException,
+      SeconKeyStoreGeneratorException {
+    if (keyPath.toString().endsWith(".pem")) {
+      return loadPrivateKeyPkcs1(keyPath);
+    } else if (keyPath.toString().endsWith(".der")) {
+      return loadPrivateKeyPkcs8(keyPath);
+    } else {
+      throw new SeconKeyStoreGeneratorException("Private key file must end with '.pem' or '.der'");
+    }
+  }
+
   // credit to https://github.com/Mastercard/client-encryption-java/blob/master/src/main/java/com/mastercard/developer/utils/EncryptionUtils.java
   // parts of this method is copyright by Mastercard according to their license https://github.com/Mastercard/client-encryption-java/blob/master/LICENSE
-  private PrivateKey loadPrivateKey(Path keyPath)
+  private PrivateKey loadPrivateKeyPkcs8(Path keyPath)
+      throws IOException, NoSuchAlgorithmException, InvalidKeySpecException {
+    byte[] keyData = Files.readAllBytes(keyPath);
+    KeyFactory keyFactory = KeyFactory.getInstance("RSA");
+    PKCS8EncodedKeySpec keySpec = new PKCS8EncodedKeySpec(keyData);
+    try {
+      return keyFactory.generatePrivate(keySpec);
+    } catch (InvalidKeySpecException e) {
+      throw new IllegalArgumentException("Unexpected key format!", e);
+    }
+  }
+
+  // credit to https://github.com/Mastercard/client-encryption-java/blob/master/src/main/java/com/mastercard/developer/utils/EncryptionUtils.java
+  // parts of this method is copyright by Mastercard according to their license https://github.com/Mastercard/client-encryption-java/blob/master/LICENSE
+  private PrivateKey loadPrivateKeyPkcs1(Path keyPath)
       throws IOException, NoSuchAlgorithmException, InvalidKeySpecException {
     String keyData = Files.readString(keyPath);
     if (!keyData.contains(PKCS_1_PEM_HEADER)) {

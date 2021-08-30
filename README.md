@@ -41,5 +41,17 @@ java -jar secon-keystore-generator.jar -k annahme-rsa4096.key -p my.prv.key.pem 
 will prompt you for a password, and generate a file called `certificates.p12` which contains all public certificates
 as well as your private certificate with the alias `private`.
 
+#### Alternative private key format
+
+In case you have problems loading the private key, it might help to convert your `my.prv.key.pem` into PKCS8 format before using this tool:
+
+```bash
+# Convert key
+openssl pkcs8 -topk8 -inform PEM -outform DER -in my.prv.key.pem -out my.prv.key.der -nocrypt
+
+# Use pkcs8 key to create the certificates.p12 file
+java -jar secon-keystore-generator.jar -k annahme-rsa4096.key -p my.prv.key.der -c my.chain.p7c
+```
+
 ## License
 MIT
