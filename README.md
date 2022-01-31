@@ -10,7 +10,7 @@ download the latest **annahme-rsa4096.key** file from [ITSG Trust Center](https:
 
 ### Public certificates keystore
 
-Use the following command to generate a key store containing all the public certificatse. It will prompt you for a password which will be used to secure the key store.
+Use the following command to generate a key store containing all the public certificates. It will prompt you for a password which will be used to secure the key store.
 
 ```
 java -jar secon-keystore-generator-<version>.jar -k <insurance-keys-input-filename> -s <key-store-output-filename>
